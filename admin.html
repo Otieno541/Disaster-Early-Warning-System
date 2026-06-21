@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEWS Kenya - Admin Dashboard | Propelled by RIAT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css" />
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/logo.jpg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+    
+    <div id="admin-auth-overlay" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#000428,#004e92);z-index:9999;align-items:center;justify-content:center;">
+        <div style="text-align:center;color:white;padding:40px;">
+            <i class="fas fa-lock" style="font-size:4rem;color:#FFD700;margin-bottom:20px;display:block;"></i>
+            <h2 style="font-size:1.8rem;margin-bottom:10px;">Admin Access Required</h2>
+            <p style="color:rgba(255,255,255,0.6);margin-bottom:24px;">Please login as an administrator to access this dashboard.</p>
+            <a href="/login" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#0066CC,#004499);color:white;text-decoration:none;border-radius:12px;font-weight:600;margin-right:10px;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+            <a href="/" style="display:inline-block;padding:14px 32px;background:rgba(255,255,255,0.1);color:white;text-decoration:none;border-radius:12px;font-weight:600;border:1px solid rgba(255,255,255,0.2);">
+                <i class="fas fa-map"></i> View Map
+            </a>
+        </div>
+    </div>
+
+    
+    <div id="admin-loading" style="position:fixed;inset:0;background:var(--darker);z-index:9998;display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;color:white;">
+            <div style="width:60px;height:60px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;"></div>
+            <p style="font-size:0.85rem;color:rgba(255,255,255,0.5);">Loading admin dashboard...</p>
+        </div>
+    </div>
+
+    
+    <div id="admin-welcome-toast" class="hidden">
+        <div class="admin-welcome-content">
+            <i class="fas fa-hand-sparkles"></i>
+            <span id="admin-welcome-message">Welcome back, Admin!</span>
+        </div>
+    </div>
+
+    
+    <div id="admin-app" class="hidden">
+        
+        <nav class="admin-sidebar" id="admin-sidebar">
+            <div class="admin-sidebar-header">
+                <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="RIAT" class="admin-sidebar-logo">
+                <div>
+                    <h3>DEWS Admin</h3>
+                    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);">Command Center</span>
+                </div>
+            </div>
+            <div class="admin-sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i><span>Dashboard</span>
+                </a>
+                <a href="#disasters" class="nav-item" data-section="disasters">
+                    <i class="fas fa-exclamation-triangle"></i><span>Disasters</span>
+                </a>
+                <a href="#users" class="nav-item" data-section="users">
+                    <i class="fas fa-users"></i><span>Users</span>
+                </a>
+                <a href="#simulation" class="nav-item" data-section="simulation">
+                    <i class="fas fa-play-circle"></i><span>Simulation</span>
+                </a>
+                <a href="#authorities" class="nav-item" data-section="authorities">
+                    <i class="fas fa-building"></i><span>Authorities</span>
+                </a>
+                <a href="#profile" class="nav-item" data-section="profile">
+                    <i class="fas fa-user-cog"></i><span>My Profile</span>
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <a href="/" class="btn btn-live-map" onclick="navigateToLiveMap(event)">
+                    <i class="fas fa-map-marked-alt"></i><span>Live Map</span>
+                </a>
+                <button class="btn btn-logout" id="admin-logout-btn">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </button>
+            </div>
+        </nav>
+
+        
+        <main class="admin-main">
+            
+            <header class="admin-topbar">
+                <button class="sidebar-toggle" id="sidebar-toggle"><i class="fas fa-bars"></i></button>
+                <div class="topbar-title" id="topbar-title">Admin Dashboard</div>
+                <div class="topbar-actions">
+                    
+                    <div class="notification-bell-wrapper">
+                        <button class="notification-bell" id="notification-bell" onclick="toggleNotificationDropdown()">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-count hidden" id="notification-count">0</span>
+                        </button>
+                        
+                        <div class="notification-dropdown hidden" id="notification-dropdown">
+                            <div class="notification-dropdown-header">
+                                <h4><i class="fas fa-bell"></i> Notifications</h4>
+                                <button class="btn btn-sm btn-secondary" onclick="markAllNotificationsRead()">
+                                    <i class="fas fa-check-double"></i> Mark all read
+                                </button>
+                            </div>
+                            <div class="notification-dropdown-body" id="notification-dropdown-body">
+                                <div class="notif-empty">
+                                    <i class="fas fa-bell-slash"></i>
+                                    <p>No notifications</p>
+                                </div>
+                            </div>
+                            <div class="notification-dropdown-footer">
+                                <span style="font-size:0.7rem;color:rgba(255,255,255,0.4);" id="notif-footer-text">
+                                    <i class="fas fa-sync-alt fa-spin" style="display:none;" id="notif-loading"></i>
+                                    Notifications update automatically
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-profile-mini" id="admin-profile-mini">
+                        <img id="mini-avatar" src="" alt="" style="display:none;">
+                        <i id="mini-avatar-icon" class="fas fa-user-shield"></i>
+                        <span id="mini-username">Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            
+            <section id="section-dashboard" class="admin-section active">
+                <div class="section-header">
+                    <h2><i class="fas fa-chart-line"></i> National Overview</h2>
+                    <span class="section-subtitle">Real-time disaster monitoring across all 47 counties</span>
+                </div>
+
+                
+                <div class="kpi-grid">
+                    <div class="kpi-card critical-glow" id="kpi-critical-card" data-kpi="critical" onclick="showKPIDetail('critical')" onmouseenter="showKPITooltip(this, 'critical')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon"><i class="fas fa-radiation"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-critical">0</span>
+                            <span class="kpi-label">Critical Alerts</span>
+                        </div>
+                        <div class="kpi-trend" id="kpi-critical-trend">--</div>
+                    </div>
+                    <div class="kpi-card" id="kpi-high-card" data-kpi="high" onclick="showKPIDetail('high')" onmouseenter="showKPITooltip(this, 'high')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon warning"><i class="fas fa-exclamation-circle"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-high">0</span>
+                            <span class="kpi-label">High Risk</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" id="kpi-predicted-card" data-kpi="predicted" onclick="showKPIDetail('predicted')" onmouseenter="showKPITooltip(this, 'predicted')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon primary"><i class="fas fa-bolt"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-predicted">0</span>
+                            <span class="kpi-label">Predicted</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" id="kpi-total-card" data-kpi="total" onclick="showKPIDetail('total')" onmouseenter="showKPITooltip(this, 'total')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon info"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-total">0</span>
+                            <span class="kpi-label">Total Active</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" id="kpi-users-card" data-kpi="users" onclick="showKPIDetail('users')" onmouseenter="showKPITooltip(this, 'users')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon success"><i class="fas fa-users"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-users">0</span>
+                            <span class="kpi-label">Total Users</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" id="kpi-online-card" data-kpi="online" onclick="showKPIDetail('online')" onmouseenter="showKPITooltip(this, 'online')" onmouseleave="hideKPITooltip()">
+                        <div class="kpi-icon online"><i class="fas fa-signal"></i></div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="kpi-online">0</span>
+                            <span class="kpi-label">Online Now</span>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="kpi-tooltip" class="kpi-tooltip hidden"></div>
+
+                
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-pie"></i> Disasters by Type</h3>
+                        <canvas id="chart-by-type"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-bar"></i> Severity Distribution</h3>
+                        <canvas id="chart-by-severity"></canvas>
+                    </div>
+                    <div class="chart-card wide">
+                        <h3><i class="fas fa-chart-area"></i> County Impact Analysis</h3>
+                        <canvas id="chart-by-county"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <h3><i class="fas fa-list"></i> Recent Active Disasters</h3>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-success btn-sm" onclick="printDisasterTable()">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="refreshAllData(true)">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" id="recent-disasters-table-container">
+                        <table class="data-table" id="disasters-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th><th>County</th><th>Severity</th><th>Status</th><th>Confidence</th><th>Location</th><th>Coordinates</th><th>Detected</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="section-disasters" class="admin-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Disaster Management</h2>
+                    <span class="section-subtitle">View and manage all disaster events</span>
+                </div>
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <select id="admin-disaster-filter" class="form-select-sm">
+                                <option value="all">All Disasters</option>
+                            </select>
+                            <select id="admin-status-filter" class="form-select-sm">
+                                <option value="all">All Statuses</option>
+                                <option value="Predicted">Predicted</option>
+                                <option value="Occurring">Occurring</option>
+                                <option value="Contained">Contained</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-success btn-sm" onclick="printFullDisasterTable()">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="refreshAllData(true)">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" id="full-disasters-table-container">
+                        <table class="data-table" id="disasters-full-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th><th>Type</th><th>County</th><th>Severity</th><th>Status</th>
+                                    <th>Confidence</th><th>Location</th><th>Coordinates</th><th>Detected</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="section-users" class="admin-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-users"></i> User Management</h2>
+                    <span class="section-subtitle">Manage registered users and monitor online activity</span>
+                </div>
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="all-users">All Users</button>
+                    <button class="tab-btn" data-tab="online-users">Online Users</button>
+                </div>
+                <div class="tab-content active" id="tab-all-users">
+                    <div class="data-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Avatar</th><th>Username</th><th>Full Name</th><th>Email</th>
+                                        <th>Phone</th><th>Role</th><th>Status</th><th>Last Seen</th><th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-online-users">
+                    <div class="data-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="online-users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Last Seen</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="section-simulation" class="admin-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-play-circle"></i> Disaster Simulation</h2>
+                    <span class="section-subtitle">Run simulations and download comprehensive reports</span>
+                </div>
+                <div class="simulation-panel">
+                    <div class="sim-controls">
+                        <button id="run-sim-btn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play"></i> Run Simulation
+                        </button>
+                        <p class="sim-hint">Triggers sensor scan across all 47 counties and generates disaster predictions</p>
+                    </div>
+                    <div id="sim-results" class="sim-results hidden">
+                        <div class="sim-results-header">
+                            <h3><i class="fas fa-chart-bar"></i> Simulation Results</h3>
+                            <div class="sim-actions">
+                                <span id="sim-timestamp" class="sim-timestamp"></span>
+                                <button class="btn btn-success" id="download-csv-btn"><i class="fas fa-file-csv"></i> Download CSV</button>
+                                <button class="btn btn-primary" id="download-html-btn"><i class="fas fa-file-code"></i> Download HTML</button>
+                            </div>
+                        </div>
+                        <div id="sim-disasters-list" class="sim-disasters-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="section-authorities" class="admin-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-building"></i> Kenyan Disaster Authorities</h2>
+                    <span class="section-subtitle">National and county-level emergency response contacts</span>
+                </div>
+                <div class="authorities-section" id="admin-authorities-grid"></div>
+            </section>
+
+            
+            <section id="section-profile" class="admin-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-cog"></i> My Profile</h2>
+                    <span class="section-subtitle">Update your account details and profile picture</span>
+                </div>
+                <div class="profile-card">
+                    <div class="profile-avatar-section">
+                        <div class="profile-avatar-large" id="profile-avatar-large">
+                            <img id="profile-avatar-img" src="" alt="Profile" style="display:none;">
+                            <i id="profile-avatar-icon" class="fas fa-user-shield"></i>
+                            <button class="avatar-change-btn" id="avatar-change-btn" title="Change Profile Picture">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
+                        <input type="file" id="profile-avatar-input" accept="image/*" style="display:none;">
+                        <h3 id="profile-display-name">Administrator</h3>
+                        <span class="role-badge admin" id="profile-display-role">System Administrator</span>
+                    </div>
+                    <form id="admin-profile-form" class="profile-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-id-card"></i> Full Name</label>
+                                <input type="text" id="admin-fullname" required>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Username</label>
+                                <input type="text" id="admin-username" readonly style="opacity:0.6;">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-envelope"></i> Email</label>
+                                <input type="email" id="admin-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-phone"></i> Phone</label>
+                                <input type="tel" id="admin-phone">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-lock"></i> New Password (leave blank to keep current)</label>
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="admin-new-password" placeholder="Min 8 chars, A-Z, a-z, 0-9, special" autocomplete="new-password">
+                                    <button type="button" class="toggle-password" onclick="toggleAdminPassword('admin-new-password', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="password-hint">Must be 8+ characters with uppercase, lowercase, number & special character</div>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-lock"></i> Confirm New Password</label>
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="admin-confirm-password" placeholder="Re-enter new password" autocomplete="new-password">
+                                    <button type="button" class="toggle-password" onclick="toggleAdminPassword('admin-confirm-password', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    
+    <div id="kpi-detail-modal" class="kpi-detail-modal hidden">
+        <div class="kpi-detail-overlay" onclick="closeKPIDetail()"></div>
+        <div class="kpi-detail-content">
+            <button class="kpi-detail-close" onclick="closeKPIDetail()"><i class="fas fa-times"></i></button>
+            <h3 id="kpi-detail-title"><i class="fas fa-chart-bar"></i> Detail</h3>
+            <div id="kpi-detail-body"></div>
+        </div>
+    </div>
+
+    
+    <div class="radius-modal-overlay hidden" id="radius-modal-overlay" onclick="if(event.target===this)closeRadiusModal()">
+        <div class="radius-modal">
+            <div class="radius-modal-header">
+                <h3><i class="fas fa-broadcast-tower"></i> Send Disaster Alert</h3>
+                <button class="btn btn-sm btn-secondary" onclick="closeRadiusModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="radius-modal-body">
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:6px;display:block;">
+                        <i class="fas fa-bullseye" style="color:var(--primary);"></i> Target Disaster
+                    </label>
+                    <select id="radius-disaster-select" class="form-select-sm" style="width:100%;padding:10px 12px;border-radius:10px;">
+                        <option value="">Select a disaster...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:6px;display:block;">
+                        <i class="fas fa-ruler" style="color:var(--primary);"></i> Radius (km)
+                    </label>
+                    <input type="range" id="radius-km" min="5" max="200" value="50" style="width:100%;margin-bottom:6px;" oninput="document.getElementById('radius-km-display').textContent=this.value+' km'">
+                    <div style="text-align:center;font-size:0.8rem;color:var(--accent);font-weight:600;" id="radius-km-display">50 km</div>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:8px;display:block;">
+                        <i class="fas fa-paper-plane" style="color:var(--primary);"></i> Notification Channels
+                    </label>
+                    <div class="alert-channel-options">
+                        <div class="channel-option selected" data-channel="sms" onclick="toggleChannel(this)">
+                            <i class="fas fa-sms"></i>
+                            <span>SMS</span>
+                        </div>
+                        <div class="channel-option selected" data-channel="email" onclick="toggleChannel(this)">
+                            <i class="fas fa-envelope"></i>
+                            <span>Email</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:6px;display:block;">
+                        <i class="fas fa-comment-alt" style="color:var(--primary);"></i> Alert Message
+                    </label>
+                    <textarea id="radius-alert-message" rows="4" placeholder="Enter your emergency alert message here..." style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:white;font-size:0.82rem;font-family:inherit;resize:vertical;outline:none;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"></textarea>
+                </div>
+                <div class="recipient-preview" id="recipient-preview">
+                    <h4><i class="fas fa-users"></i> Estimated Recipients</h4>
+                    <p style="font-size:0.78rem;color:rgba(255,255,255,0.5);" id="recipient-count-text">Select a disaster to see estimated recipients</p>
+                </div>
+            </div>
+            <div class="radius-modal-footer">
+                <button class="btn btn-secondary" onclick="closeRadiusModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-danger" onclick="sendRadiusAlert()">
+                    <i class="fas fa-broadcast-tower"></i> Send Alert
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="admin-toast-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>
